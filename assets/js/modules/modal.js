@@ -26,3 +26,9 @@ if (imageModal) {
     }
   });
 }
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && imageModal && imageModal.classList.contains('active')) {
+    imageModal.classList.remove('active');
+  }
+});

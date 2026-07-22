@@ -1,11 +1,13 @@
 function handleImgError(img) {
-  img.onerror = null;
-  img.src = SVG_FALLBACK;
+  if (img) {
+    img.onerror = null;
+    img.src = typeof SVG_FALLBACK !== 'undefined' ? SVG_FALLBACK : "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300' fill='%23061938'%3E%3Crect width='400' height='300' fill='%23061938'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%2394a3b8' font-family='sans-serif' font-size='14'%3ENASA Image Unavailable%3C/text%3E%3C/svg%3E";
+  }
 }
+window.handleImgError = handleImgError;
 
 async function apiFetch(url) {
   const res = await fetch(url);
   if (!res.ok) throw new Error('HTTP ' + res.status);
   return await res.json();
 }
-

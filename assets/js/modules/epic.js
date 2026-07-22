@@ -9,12 +9,11 @@ const btnEpicPlay = document.getElementById('btnEpicPlay');
 const epicSpeedSelect = document.getElementById('epicSpeedSelect');
 
 if (epicTypeSelect) {
-  epicTypeSelect.addEventListener('change', () => loadEPIC());
+  epicTypeSelect.addEventListener('change', () => loadEPIC(30));
 }
 
-async function loadEPIC() {
+async function loadEPIC(targetCount = 30) {
   const type = epicTypeSelect ? epicTypeSelect.value : 'natural';
-  const url = `https://api.nasa.gov/EPIC/api/${type}?api_key=${API_KEY}`;
   
   document.getElementById('epicLoading').style.display = 'block';
   document.getElementById('epicContent').style.display = 'none';
@@ -22,27 +21,56 @@ async function loadEPIC() {
   stopEpicPlay();
 
   try {
-    const data = await apiFetch(url);
+    let accumulatedFrames = [];
 
-    if (!data || data.length === 0) throw new Error('No EPIC frames returned');
+    try {
+      const datesUrl = `https://api.nasa.gov/EPIC/api/${type}/all?api_key=${API_KEY}`;
+      const availableDates = await apiFetch(datesUrl);
 
-    epicImagesCache = data;
+      if (Array.isArray(availableDates) && availableDates.length > 0) {
+        for (let i = availableDates.length - 1; i >= 0; i--) {
+          if (accumulatedFrames.length >= targetCount) break;
+          const dateStr = availableDates[i].date;
+          const dateFramesUrl = `https://api.nasa.gov/EPIC/api/${type}/date/${dateStr}?api_key=${API_KEY}`;
+          const frames = await apiFetch(dateFramesUrl);
+          if (Array.isArray(frames) && frames.length > 0) {
+            accumulatedFrames.push(...frames);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Multi-date EPIC fetch fallback:', e);
+    }
+
+    if (accumulatedFrames.length === 0) {
+      const fallbackUrl = `https://api.nasa.gov/EPIC/api/${type}?api_key=${API_KEY}`;
+      const fallbackData = await apiFetch(fallbackUrl);
+      if (Array.isArray(fallbackData)) {
+        accumulatedFrames = fallbackData;
+      }
+    }
+
+    if (!accumulatedFrames || accumulatedFrames.length === 0) {
+      throw new Error('No EPIC frames returned');
+    }
+
+    epicImagesCache = accumulatedFrames.slice(0, targetCount);
     epicCurrentIdx = 0;
 
     if (epicTimelineSlider) {
-      epicTimelineSlider.max = data.length - 1;
+      epicTimelineSlider.max = epicImagesCache.length - 1;
       epicTimelineSlider.value = 0;
     }
 
     document.getElementById('epicLoading').style.display = 'none';
     document.getElementById('epicContent').style.display = 'flex';
-    document.getElementById('statEpicDate').textContent = `${data.length} Frames`;
+    document.getElementById('statEpicDate').textContent = `${epicImagesCache.length} Frames`;
 
     preloadEpicImages(type);
     renderEpicFrame(type);
   } catch (err) {
     console.error('EPIC Error:', err);
-    document.getElementById('epicLoading').innerHTML = `<p style="color: var(--danger-red);">Failed to load EPIC Earth frames.</p>`;
+    document.getElementById('epicLoading').innerHTML = `<p style="color: var(--danger-red);">Failed to load EPIC Earth frames. ${err.message}</p>`;
   }
 }
 
@@ -96,7 +124,6 @@ function startEpicPlay() {
   if (btnEpicPlay) {
     btnEpicPlay.innerHTML = `
       <svg class="icon-svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
-      Pause
     `;
     btnEpicPlay.classList.replace('btn-primary', 'btn-outline');
   }
@@ -115,7 +142,6 @@ function stopEpicPlay() {
   if (btnEpicPlay) {
     btnEpicPlay.innerHTML = `
       <svg class="icon-svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-      Play Globe
     `;
     btnEpicPlay.classList.replace('btn-outline', 'btn-primary');
   }

@@ -9,11 +9,3 @@ async function apiFetch(url) {
   return await res.json();
 }
 
-function updateClock() {
-  const now = new Date();
-  const utcString = now.toUTCString().replace("GMT", "UTC");
-  const clockEl = document.getElementById("utcClock");
-  if (clockEl) clockEl.textContent = utcString;
-}
-setInterval(updateClock, 1000);
-updateClock();
